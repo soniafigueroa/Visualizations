@@ -1,0 +1,77 @@
+---
+title: "HW1"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(car)
+library(ggplot2)
+gss <- read.csv("GSSdata2016.csv")
+library(foreign)
+#gss <- read.spss("GSS7216_R4.sav")
+```
+#Categorical Variable
+
+The column EVSTRAY was looked at. This question asked if people ever had sex with someone other than their spouse while married. Only responses of 1 or 2 were looked at as, as a response of 3 was "Never Married", 8 was "Don't Know", 9 was "No Answer", and 0 was "Not Applicable"
+```{r}
+married <- as.data.frame(gss$EVSTRAY) %>% filter(gss$EVSTRAY%in%1:2)
+colnames(married) <- "Affair"
+married<- recode(married$Affair, "1='Yes'; 2='No'") %>% as.data.frame()
+colnames(married) <- "Affair"
+```
+
+This data is then graphed:
+```{r}
+ggplot(data=married,aes(x=Affair, y=100*(..count../sum(..count..)))) + 
+  geom_bar(color="black", fill=c("sienna4","darkmagenta")) + 
+  labs(x = "Had Extramarital Sex", y="Percent", title="Percent of People Who Have Had Extramarital Sex") +
+  annotate("text", x =c("Yes", "No"),y =c(18, 82)-4,label = c("18%","82%"), color = "white", size = 6) +
+  coord_cartesian(ylim=c(0,90), expand = FALSE) + 
+  theme_classic()
+```
+According to the data, about 18% of people who were married have had sex with someone other than their spouse while they were married.
+
+
+#Continuous Variable
+
+SUINUM: "Over your lifetime how many people have you known personally that died by suicide? Please tell us the total number of people that died by suicide."
+
+According to the GSS Data Explorer, the max of the responses was 95. This data is skewed with many outliers, with a median of 1, mean of 1.43, and standard deviation of 5.14. Values above 95 and less than 0 were removed, as these values represented missing or "Not Applicable" data.
+```{r}
+suicide <- as.data.frame(gss$SUINUM) %>% filter(gss$SUINUM >=0, gss$SUINUM <=95)
+colnames(suicide) <- "number"
+
+hist(suicide$number, breaks = 20) #plotting basic histogram to show skew
+summary(suicide)
+sd(suicide$number)
+```
+
+The IQR is used to find outliers. All values considered to be outliers will be removed.
+Lower bound is not calculated at as it is impossible to know a negative number of people
+```{r}
+1.5*IQR(suicide$number)
+quantile(suicide$number, .75)+1.5*IQR(suicide$number)
+```
+
+The data is then subset to this smaller range
+```{r}
+suicide <- as.data.frame(gss$SUINUM) %>% filter(gss$SUINUM >=0, gss$SUINUM <=5)
+colnames(suicide) <- "number"
+
+summary(suicide)
+sd(suicide$number)
+sum(suicide$number==0)/1432
+```
+
+Histogram of subset data
+```{r}
+ggplot(suicide, aes(x=number, y=100*..count../sum(..count))) +
+  geom_histogram(bins = 6, color="black", fill="slateblue4") + 
+  labs(x = "Number", y="Percent", title="Number of Known Suicides", xlim(0,5)) + 
+  coord_cartesian(ylim =c(0, 800), expand = FALSE) + 
+  theme_classic() +
+  theme(plot.title =element_text(size = 16))
+```
+
+These results look more realistic, as studies have shown that about 55% of people know someone who has committed suicide (http://www.rasmussenreports.com/public_content/lifestyle/general_lifestyle/september_2017/more_than_half_of_americans_know_someone_who_committed_suicide) and from this subset of data, about 48% of respondents reported 0. It also seems very unlikely that a person could know more than five people who have died by suicide unless they have had occupations that put them in contact with people who are more likely to commit suicide (e.g. mental health worker, military, etc)
