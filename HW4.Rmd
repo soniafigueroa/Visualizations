@@ -1,0 +1,79 @@
+---
+title: "HW4"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+artist <- read.csv("artistdata.csv")
+data <- read.csv("Roller Coasters.csv")
+```
+ 
+ 
+```{r}
+#artist<- artist[complete.cases(artist[,c("ethnicity", "gender")]),]
+artist<-as.data.frame(artist)
+#Data type needs to be changed from factor to character to change NA values
+artist$gender <- as.character(artist$gender)
+artist$ethnicity <- as.character(artist$ethnicity)
+#Recoding NA
+artist$gender[is.na(artist$gender)] <- "unknown"
+artist$ethnicity[is.na(artist$ethnicity)] <- "unknown"
+#DEfining factors to have bars in desired order
+artist$gender <- factor(artist$gender,levels = c("man", "woman", "unknown"))
+```
+
+```{r, tidy=TRUE}
+#stacked bar chart
+ggplot(artist, aes(ethnicity, y=100*(..count../sum(..count..)))) +
+  geom_bar(aes(fill = gender), position = "fill") +
+  labs(y="Percent", x="Ethnicity", title = "Proportion of Artists' Gender by Ethnicity") +
+  scale_y_continuous(expand =c(0, 0), limits = c(0,1), breaks = seq(0,1,.2), labels = scales::percent) +
+  scale_fill_manual(values = c("slateblue3", "cornsilk4", "darkmagenta"), name="Gender", breaks=c("man", "woman", "unknown"), labels=c("Man", "Woman", "Unknown")) +
+  theme_classic()
+```
+
+\newpage
+
+```{r}
+#Changing data to show percentages instead of counts
+table <- table(artist$gender, artist$ethnicity)
+#Get proportion of each gender for each ethnicity and changing back to data frame for ggplot
+artist_table <- prop.table(table,2) %>% round(2) %>% as.data.frame()
+#Change to percent
+artist_table$Freq <- artist_table$Freq*100
+
+colnames(artist_table) <- c("gender", "ethnicity", "Freq")
+artist_table
+```
+
+\newpage
+
+```{r, tidy=TRUE}
+#side by side bar chart
+ggplot(artist_table, aes(ethnicity, y=Freq, fill=gender)) +
+  geom_bar(stat="identity", position = "dodge") +
+  labs(y="Percent", x="Ethnicity", title = "Proportion of Artists' Gender by Ethnicity") +
+  scale_y_continuous(expand =c(0, 0), limits = c(0,90), breaks = seq(0,90,10), labels = function(x) paste0(x, "%")) +
+  scale_fill_manual(values = c("slateblue3", "cornsilk4", "darkmagenta"), name="Gender", breaks=c("man", "woman", "unknown"), labels=c("Man", "Woman", "Unknown")) +
+  theme_classic()
+```
+
+\newpage
+
+```{r, tidy=TRUE}
+#faceted bar chart
+ggplot(artist_table, aes(gender, y=Freq, fill=gender)) +
+  geom_bar(stat = "identity") +
+  labs(y="Percentages", title = "Proportion of Artists' Gender by Ethnicity") +
+  scale_fill_manual(values = c("slateblue3", "cornsilk4", "darkmagenta"), name="Gender", breaks=c("man", "woman", "unknown"), labels=c("Man", "Woman", "Unknown")) +
+  facet_wrap(vars(ethnicity)) +
+  scale_y_continuous(expand =c(0, 0), limits = c(0,90), breaks = seq(0,90,20), labels = function(x) paste0(x, "%")) +
+  theme_minimal()+
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank(), panel.spacing.y=unit(1, "lines"))
+```
+
+\newpage
+
