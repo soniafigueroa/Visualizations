@@ -1,0 +1,158 @@
+Visualizing Categorical and Continuous Variables
+========================================================
+author: Sonia Figueroa
+date: 
+autosize: true
+font-family: 'Helvetica'
+transition: linear
+
+<style>
+.small-code pre code {
+  font-size: 1em;
+}
+</style>
+
+<style>
+.reveal .slides{
+    width: 80% !important;
+}
+</style>
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(car)
+library(ggplot2)
+library(knitr)
+#gss <- read.csv("GSSdata2016.csv")
+married <- read.csv("married.csv")
+suicide <- read.csv("suicide.csv")
+
+```
+
+Categorical Variable: Have you ever had sex with someone other than your husband or wife while you were married?
+========================================================
+type: sub-section
+
+
+Subsetting the Data
+========================================================
+- Only responses coded as 1 or 2 were kept
+  - "Yes" was coded as 1
+  - "No" was coded as 2
+- All other responses were removed
+```{r, eval=FALSE}
+married <- as.data.frame(gss$EVSTRAY) %>% 
+  filter(gss$EVSTRAY%in%1:2)
+```
+```{r, echo=FALSE}
+colnames(married) <- "Affair"
+married <- as.data.frame(married$Affair) %>% 
+  filter(married$Affair%in%1:2)
+colnames(married) <- "Affair"
+```
+
+Recoding the Variables
+========================================================
+- Variables are recoded back to Yes/No responses
+```{r}
+married<- recode(married$Affair, "1='Yes'; 2='No'") %>% 
+  as.data.frame()
+```
+```{r, echo=FALSE}
+colnames(married) <- "Affair"
+```
+
+
+========================================================
+title: false
+class: small-code
+```{r, fig.width=8,fig.height=4.5,dpi=300,out.width="900px",out.height="500px"}
+ggplot(data=married,aes(x=Affair, y=100*(..count../sum(..count..)))) + 
+  geom_bar(color="black", fill=c("darkmagenta", "sienna4")) + 
+  labs(x = "Had Extramarital Sex", y="Percent", title="Percent of People Who Have Had Extramarital Sex") +
+  annotate("text", x =c("No", "Yes"),y =c(82,18)-4,label = c("82%", "18%"), color = "white", size = 6) +
+  coord_cartesian(ylim=c(0,90), expand = FALSE) + 
+  theme_classic()
+```
+
+
+Continuous Variable: Over your lifetime how many people have you known personally that died by suicide?
+========================================================
+type: sub-section
+
+
+Removing NA Values
+========================================================
+class: small-code
+left:60%
+- The max for the data was 95
+- Values greater than 95 were labeled as "No Answer"
+```{r, eval=FALSE}
+suicide <- as.data.frame(gss$SUINUM) %>% 
+  filter(gss$SUINUM >=0, gss$SUINUM <=95)
+```
+```{r, echo=FALSE}
+colnames(suicide) <- "number"
+```
+
+- The resulting data was highly skewed 
+```{r, echo=FALSE}
+summary(suicide)
+sd(suicide$number)
+```
+*****
+
+```{r, echo=FALSE}
+ggplot(suicide, aes(x=number)) +
+  geom_histogram(bins = 60, color="black", fill="slateblue4") + 
+  labs(x = "Number", y="Count", title="Number of Known Suicides", xlim(0,95)) + 
+  coord_cartesian(ylim =c(0, 700), expand = FALSE) + 
+  theme_classic() +
+  theme(plot.title =element_text(size = 16))
+```
+
+
+
+
+
+Removing Outliers
+========================================================
+class: small-code
+left:38%
+- The IQR is calculated and all values considered to be outliers are removed
+- Because it is impossible to know a negative number of people, only the upper bound is checked for outliers
+
+***
+
+```{r}
+quantile(suicide$number, .75)+1.5*IQR(suicide$number)
+```
+```{r}
+suicide <- as.data.frame(suicide$number) %>% 
+  filter(suicide$number <=5)
+```
+```{r, echo=FALSE}
+colnames(suicide) <- "number"
+```
+
+```{r, echo=FALSE}
+summary(suicide$number)
+```
+```{r}
+sd(suicide$number)
+```
+
+
+
+========================================================
+title: false
+class: small-code
+```{r, fig.width=8,fig.height=4.5,dpi=300,out.width="900px",out.height="500px"}
+ggplot(suicide, aes(x=number)) +
+  geom_histogram(bins = 6, color="black", fill="slateblue4") + 
+  labs(x = "Number", y="Count", title="Number of Known Suicides", xlim(0,5)) + 
+  coord_cartesian(ylim =c(0, 800), expand = FALSE) + 
+  theme_classic() +
+  theme(plot.title =element_text(size = 16))
+```
+
