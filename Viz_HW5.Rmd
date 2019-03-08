@@ -1,0 +1,312 @@
+---
+title: "Viz_HW5"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(foreign)
+library(ggplot2)
+library(plotly)
+library(broom)
+library(stringr)
+library(RColorBrewer)
+gss <- read.csv("GSSdata2016.csv")
+data <- gss[, c("LIFE", "MNTLHLTH", "AGE", "REALRINC")]
+
+#subsetting data
+data<- data %>% filter(data$LIFE%in%1:3, data$MNTLHLTH %in% 1:30, data$AGE %in% 18:50, data$REALRINC %in% 1000:150000)
+#Recoding categorical variables
+data[data$LIFE==1,1] <- "Exciting"
+data[data$LIFE==2,1] <- "Routine"
+data[data$LIFE==3,1] <- "Dull"
+
+#Change to factors for proper ordering
+data$LIFE <- factor(data$LIFE,levels = c("Exciting", "Routine", "Dull"))
+
+#Creating dataset from Life Outlook variable from data set
+outlook <- data %>% group_by(LIFE) %>% summarize(count = n()) %>% ungroup
+n <- sum(outlook$count)
+#Assigning colors
+outlook$mycol <- brewer.pal(8, "Set2")[1:3]
+
+#Define all buttons on visualizations that I do not want to appear
+to_remove <- c("resetScale2d",  "sendDataToCloud", "zoom2d", "zoomIn2d", "zoomOut2d", "pan2d", "select2d", "lasso2d", "hoverClosestCartesian", "hoverCompareCartesian", "hoverClosestGl2d", "hoverClosestPie", "toggleHover", "resetViews", "toggleSpikelines")
+```
+
+#a) a bar chart
+```{r, warning=FALSE}
+plot_ly(data = outlook, x = ~LIFE, y= ~100 * (count/n), type = "bar", 
+        color = ~LIFE, 
+        marker = list(color = ~mycol),
+        hovertext = paste("<b>Count:</b>", outlook$count, "<br><b>Percent:</b>", paste0(round(100 * outlook$count/n, 1), "%")), 
+        hoverinfo = "x+text", 
+        marker = list(line = list(color = "black", 
+                                  width = 1.5))) %>% 
+  layout(showlegend = FALSE, 
+         xaxis = list(title = "Life Outlook"), 
+         yaxis = list(title = "Percent of People with View",ticksuffix = "%", title = "Percent (%)"), 
+         hovermode = "x+y", 
+         margin = list(t = 80), 
+         annotations = list(text = "Barchart of Life Outlook", 
+                            showarrow = FALSE, 
+                            font = list(size = 19), 
+                            x = 0.5, 
+                            xref = "paper", 
+                            xanchor = "center", 
+                            y = 1.2, 
+                            yref = "paper"))  %>% 
+    add_annotations(text = paste0("Based on the 2016 GSS with ", n, " respondents"), 
+                    showarrow = FALSE, 
+                    font = list(size = 16), 
+                    x = 0.5, 
+                    xref = "paper", 
+                    xanchor = "center", 
+                    y = 1.12, 
+                    yref = "paper") %>%
+  config(collaborate = FALSE, 
+         displaylogo = FALSE, 
+         modeBarButtonsToRemove = to_remove)
+```
+
+#b) a horizontal stacked bar chart of a single variable
+```{r, warning=FALSE}
+#Transpose "outlook" dataset to create stacked bar charts
+outlooks <- outlook
+outlooks$count <- round(100*outlook$count/n, 1)
+t_outlook <- t(outlooks) %>% as.data.frame()
+t_outlook <- t_outlook[-c(1,3),]
+colnames(t_outlook) <- c("Exciting", "Routine", "Dull")
+#Re-setting color palette to use
+color = brewer.pal(8, "Set2")
+
+
+plot_ly(data = t_outlook, type = "bar",
+        orientation = "h",
+        hoverinfo = "name+x", 
+        textposition = "inside") %>%
+  add_trace(x = ~Exciting, 
+            name = "Exciting", 
+            marker = list(color = color[1])) %>%
+  add_trace(x = ~Routine, name = "Routine", 
+            marker = list(color = color[2])) %>%
+  add_trace(x = ~Dull, name = "Dull", 
+            marker = list(color = color[3])) %>%
+  layout(margin = list(t = 80), 
+         barmode = 'stack', 
+         annotations = list(text = "Barchart of Life Outlook", 
+                            showarrow = FALSE, 
+                            font = list(size = 19), 
+                            x = 0.5, 
+                            xref = "paper", 
+                            xanchor = "center", 
+                            y = 1.2, 
+                            yref = "paper"),
+         yaxis = list(showgrid = FALSE, 
+                      showticklabels = FALSE, 
+                      showline = FALSE),
+         xaxis = list(title = "Percent of People with View",
+                      ticksuffix = "%", 
+                      title = "Percent (%)",
+                      zeroline = FALSE))  %>%
+    add_annotations(text = paste0("Based on the 2016 GSS with ", n, " respondents"), 
+                    showarrow = FALSE, 
+                    font = list(size = 16), 
+                    x = 0.5, 
+                    xref = "paper", 
+                    xanchor = "center", 
+                    y = 1.12, 
+                    yref = "paper") %>%
+  config(collaborate = FALSE, 
+         displaylogo = FALSE, 
+         modeBarButtonsToRemove = to_remove)
+
+```
+
+#c) a vertical stacked bar chart of a single variable
+```{r, warning=FALSE}
+plot_ly(data = t_outlook, type = "bar",
+        hoverinfo = "name+y", 
+        textposition = "inside") %>%
+  add_trace(y = ~Exciting, 
+            name = "Exciting", 
+            marker = list(color = color[1])) %>%
+  add_trace(y = ~Routine, name = "Routine", 
+            marker = list(color = color[2])) %>%
+  add_trace(y = ~Dull, name = "Dull", 
+            marker = list(color = color[3])) %>%
+  layout(margin = list(t = 80), 
+         barmode = 'stack', 
+         annotations = list(text = "Barchart of Life Outlook", 
+                            showarrow = FALSE, 
+                            font = list(size = 19), 
+                            x = 0.5, 
+                            xref = "paper", 
+                            xanchor = "center", 
+                            y = 1.2, 
+                            yref = "paper"),
+         xaxis = list(showgrid = FALSE, 
+                      showticklabels = FALSE, 
+                      showline = FALSE),
+         yaxis = list(title = "Percent of People with View",
+                      ticksuffix = "%", 
+                      title = "Percent (%)",
+                      zeroline = FALSE))  %>%
+    add_annotations(text = paste0("Based on the 2016 GSS with ", n, " respondents"), 
+                    showarrow = FALSE, 
+                    font = list(size = 16), 
+                    x = 0.5, 
+                    xref = "paper", 
+                    xanchor = "center", 
+                    y = 1.12, 
+                    yref = "paper") %>%
+  config(collaborate = FALSE, 
+         displaylogo = FALSE, 
+         modeBarButtonsToRemove = to_remove)
+```
+
+#d) a pie chart of a single variable
+```{r, warning=FALSE}
+plot_ly(outlook, labels = ~LIFE, values = ~count,type = 'pie', 
+        textinfo = 'percent', 
+        marker = list(colors = ~mycol), 
+        insidetextfont = list(color = 'black',
+                              size=18), 
+        showlegend = FALSE, 
+        hovertext = paste("<b>Count:</b>", outlook$count), 
+        hoverinfo = "label+x+text") %>%
+  layout(margin = list(t = 80),
+         annotations = list(text = "Pie Chart of Life Outlook", 
+                            showarrow = FALSE, 
+                            font = list(size = 19), 
+                            x = 0.5, 
+                            xref = "paper", 
+                            xanchor = "center", 
+                            y = 1.2, 
+                            yref = "paper"),
+         xaxis = list(showgrid = FALSE, 
+                      zeroline = FALSE, 
+                      showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, 
+                      zeroline = FALSE, 
+                      showticklabels = FALSE)) %>%
+  add_annotations(text = paste0("Based on the 2016 GSS with ", n, " respondents"), 
+                    showarrow = FALSE, 
+                    font = list(size = 16), 
+                    x = 0.5, 
+                    xref = "paper", 
+                    xanchor = "center", 
+                    y = 1.12, 
+                    yref = "paper") %>%
+  config(collaborate = FALSE, 
+         displaylogo = FALSE, 
+         modeBarButtonsToRemove = to_remove)
+```
+
+#e) a histogram of a single variable
+```{r, warning=FALSE}
+n <- sum(data$MNTLHLTH)
+
+plot_ly(data = data, x = ~MNTLHLTH, type = "histogram", 
+        histnorm = "probability",
+        hovertext = paste("<b>Days:</b>", data$MNTLHLTH),
+        hoverinfo = "x+text") %>%
+  layout(margin = list(t = 80),
+         yaxis = list(title = "Percent",
+                      tickvals = seq(.05,.3,.05),
+                      ticktext = paste0(seq(.05,.3,.05)*100, "%")),
+         xaxis = list(title = "Number of Poor Mental Health Days"),
+         annotations = list(text = "Histogram of Number of Days in Past Month with Poor Mental Health", 
+                            showarrow = FALSE, 
+                            font = list(size = 19), 
+                            x = 0.5, 
+                            xref = "paper", 
+                            xanchor = "center", 
+                            y = 1.2, 
+                            yref = "paper"))  %>% 
+  add_annotations(text = paste0("Based on the 2016 GSS with ", n, " respondents who reported at least one day"), 
+                  showarrow = FALSE, 
+                  font = list(size = 16), 
+                  x = 0.5, 
+                  xref = "paper", 
+                  xanchor = "center", 
+                  y = 1.12, 
+                  yref = "paper") %>%
+  config(collaborate = FALSE, 
+         displaylogo = FALSE, 
+         modeBarButtonsToRemove = to_remove)
+```
+
+#f) a boxplot of a single variable
+```{r, warning=FALSE}
+plot_ly(data = data, x = ~MNTLHLTH, type = "box",
+        jitter = 1,
+        name = " ",
+        hoverinfo = "x") %>%
+  layout(showlegend = FALSE, 
+         xaxis = list(title = "Number of Poor Mental Health Days"), 
+         annotations = list(text = "Boxplot of Number of Days in Past Month with Poor Mental Health", 
+                            showarrow = FALSE, 
+                            font = list(size = 19), 
+                            x = 0.5, 
+                            xref = "paper", 
+                            xanchor = "center", 
+                            y = 1.05, 
+                            yref = "paper"))  %>% 
+  add_annotations(text = paste0("Based on the 2016 GSS with ", n, " respondents"), 
+                  showarrow = FALSE, 
+                  font = list(size = 16), 
+                  x = .045, 
+                  xref = "paper", 
+                  xanchor = "left", 
+                  y = 1, 
+                  yref = "paper") %>% 
+  config(collaborate = FALSE, 
+         displaylogo = FALSE, 
+         modeBarButtonsToRemove = to_remove)
+```
+
+#g) Scatterplot (with  smooth line)
+```{r, warning=FALSE}
+#Create smooth line
+m <- loess(AGE ~ REALRINC, data = data)
+
+plot_ly(data, type = "scatter", mode = "markers", x = ~AGE,
+        color = I("blue3"),
+        marker = list(symbol = "diamond"),
+        showlegend = FALSE, 
+        hoverinfo = "x+y") %>%
+  add_markers(y = ~REALRINC,
+              showlegend = FALSE,
+              text = rownames(data)) %>%
+  add_lines(y = ~fitted(loess(REALRINC ~ AGE)),
+            line = list(color = "red"), 
+            name = "Loess Smoother") %>%
+  layout(margin = list(t = 80),
+         xaxis = list(title = 'Age'),
+         yaxis = list(title = 'Annual Income',
+                      tickvals = seq(10,80,10)*1000,
+                      ticktext = paste0("$", seq(10,80,10), "k")),
+         annotations = list(text = "Scatter Plot of Age and Annual Income with Smooth Line", 
+                            showarrow = FALSE, 
+                            font = list(size = 19), 
+                            x = 0.5, 
+                            xref = "paper", 
+                            xanchor = "center", 
+                            y = 1.2, 
+                            yref = "paper")) %>% 
+  add_annotations(text = paste0("Based on the 2016 GSS with ", n, " respondents"), 
+                  showarrow = FALSE, 
+                  font = list(size = 16), 
+                  x = .5, 
+                  xref = "paper", 
+                  xanchor = "center", 
+                  y = 1.1, 
+                  yref = "paper") %>% 
+  config(collaborate = FALSE, 
+         displaylogo = FALSE, 
+         modeBarButtonsToRemove = to_remove)
+
+```
+
