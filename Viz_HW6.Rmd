@@ -1,0 +1,112 @@
+---
+title: "HW6"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(foreign)
+library(ggplot2)
+library(plotly)
+library(broom)
+library(stringr)
+library(RColorBrewer)
+# gss <- read.csv("GSSdata2016.csv")
+# data1 <- gss[, c("AGE", "REALRINC", "DEGREE")]
+# write.csv(data1, "HW5Data.csv")
+data <- read.csv("HW5Data.csv")[,-1]
+```
+
+```{r}
+#subset data
+data<- data %>% filter(data$AGE %in% 24:50, data$REALRINC %in% 10000:121000, data$DEGREE %in% 2:4)
+#Recode college level
+data[data$DEGREE %in% 2:3,3] <- "Undergraduate"
+data[data$DEGREE==4,3] <- "Graduate"
+data$DEGREE <- factor(data$DEGREE, levels = c("Undergraduate","Graduate"))
+
+#Define all buttons on visualizations that I do not want to appear
+to_remove <- c("resetScale2d",  "sendDataToCloud", "zoom2d","zoomOut2d", "select2d", "lasso2d", "hoverClosestCartesian", "hoverCompareCartesian", "hoverClosestGl2d", "hoverClosestPie", "toggleHover", "resetViews", "toggleSpikelines")
+```
+
+##Creating Plot for People with Undergraduate Degrees
+```{r}
+#Subset data for people who received an undergraduate degree
+data_u_grad <- data[data$DEGREE=="Undergraduate",] %>% as.data.frame()
+u <- nrow(data_u_grad)
+
+p1 <- plot_ly(data_u_grad, x = ~AGE, y = ~REALRINC, type = "scatter", 
+              mode = "markers", 
+              name = "Undergraduate Degree",
+              color = I("green"),
+              hoverinfo = "x+y") %>%
+  #Add smooth line
+  add_lines(y = fitted(loess(REALRINC~AGE, data = data_u_grad)),
+            mode = "line",
+            line = list(color = "purple"),
+            name = "Smooth Line for \n Undergraduate Degree") %>%
+  #Add error band
+  add_ribbons(data = augment(loess(REALRINC ~ AGE, data = data_u_grad)),
+              ymin = ~.fitted - 1.96 * .se.fit,
+              ymax = ~.fitted + 1.96 * .se.fit,
+              line = list(color = 'rgba(128,0,128,.5)'),
+              fillcolor = 'rgba(128,0,128,.3)',
+              name = "Standard Error") 
+```
+
+##Creating Plot for People with Graduate Degrees
+```{r}
+#Subset data for people who received a graduate degree
+data_grad <- data[data$DEGREE=="Graduate",] %>% as.data.frame()
+g <- nrow(data_grad)
+
+p2 <- plot_ly(data_grad, x = ~AGE,y = ~REALRINC, type = "scatter", 
+              mode = "markers", 
+              name = "Graduate Degree",
+              color = I("blue"),
+              hoverinfo = "x+y") %>%
+  #Add smooth line
+  add_lines(y = fitted(loess(REALRINC~AGE, data = data_grad)),
+            mode = "line",
+            line = list(color = "red"),
+            name = "Smooth Line for \n Graduate Degree") %>%
+  #Add error band
+  add_ribbons(data = augment(loess(REALRINC ~ AGE, data = data_grad)),
+              ymin = ~.fitted - 1.96 * .se.fit,
+              ymax = ~.fitted + 1.96 * .se.fit,
+              line = list(color = 'rgba(255,0,0, .5)'),
+              fillcolor = 'rgba(255,0,0, .3)',
+              name = "Standard Error") 
+```
+
+##Scatterplot (with  smooth lines)
+```{r, fig.width=10, fig.height=5.5}
+#Combining plots for undergraduate and graduate degrees
+subplot(p1, p2, which_layout = "merge", shareX = TRUE, shareY = TRUE) %>%
+    layout(margin = list(t = 80),
+         xaxis = list(title = 'Age'),
+         yaxis = list(title = 'Annual Income',
+                      tickvals = seq(10,110,10)*1000,
+                      ticktext = paste0("$", seq(10,110,10), "k")),
+         annotations = list(text = "Scatter Plot of Age and Annual Income by College Degree with Smooth Lines",
+                            showarrow = FALSE, 
+                            font = list(size = 19), 
+                            x = 0.65, 
+                            xref = "paper", 
+                            xanchor = "center", 
+                            y = 1.2, 
+                            yref = "paper")) %>%
+  add_annotations(text = paste0("Based on the 2016 GSS with ", u, " respondents with undergraduate degrees \n and ", g,  " with graduate degrees"), 
+                  showarrow = FALSE, 
+                  font = list(size = 16), 
+                  x = .6, 
+                  xref = "paper", 
+                  xanchor = "center", 
+                  y = 1.1, 
+                  yref = "paper") %>% 
+  config(collaborate = FALSE, 
+         displaylogo = FALSE, 
+         modeBarButtonsToRemove = to_remove)
+```
+
