@@ -1,0 +1,127 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(plotly)
+library(RColorBrewer)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Categorical Variable
+From https://www.governing.com/gov-data/residential-racial-segregation-metro-areas.html 
+
+##Reading and formating the data
+```{r}
+GET('http://images.centerdigitaled.com/documents/segregation-national-download.csv', 
+    write_disk(us_cities_impt <- tempfile(fileext = ".csv")))
+
+us_cities <- read.csv(us_cities_impt)
+
+#Separating city and state
+us_cities <- separate(data = us_cities, col = MSA, into = c("City", "State"), sep = ",")
+#Cities are on the border of two states and will be removed
+us_cities <- us_cities[!grepl("-",us_cities$State),]
+#Keeping only columns of interest
+us_states <- us_cities[,c("State", "Black.Population", "White.Population..Non.Hispanic.", "Hispanic.Population", "Asian.Population")]
+
+us_states$Black.Population <- as.numeric(gsub(",","", as.character(us_states$Black.Population)))
+us_states$White.Population..Non.Hispanic. <- as.numeric(gsub(",","", as.character(us_states$White.Population..Non.Hispanic.)))
+us_states$Hispanic.Population <- as.numeric(gsub(",","", as.character(us_states$Hispanic.Population)))
+us_states$Asian.Population <- as.numeric(gsub(",","", as.character(us_states$Asian.Population)))
+
+#Grouping race populations by state
+us_states <- aggregate(.~ State, us_states, FUN=sum)
+
+#Calculate total sample population of each state
+us_states$TotalPop <- apply(us_states[-1],1,sum)
+
+#Convert counts to percentages
+us_states$Black.Population <- round(us_states$Black.Population/us_states$TotalPop *100, 1)
+us_states$White.Population..Non.Hispanic. <- round(us_states$White.Population..Non.Hispanic./us_states$TotalPop*100, 1)
+us_states$Hispanic.Population <- round(us_states$Hispanic.Population/us_states$TotalPop*100, 1)
+us_states$Asian.Population <- round(us_states$Asian.Population/us_states$TotalPop*100, 1)
+
+```
+
+##Plotting racial breakdown of states from population samples
+```{r}
+color <- brewer.pal(4, "Set1")
+plot_ly(us_states, x = ~State, y = ~Black.Population, 
+        type = 'bar',
+        name = 'Black Population',
+        marker = list(color = color[1]),
+        text = paste("<b>State:</b>", us_states$State, "<br><b>Sample Population:</b>", prettyNum(us_states$TotalPop,big.mark=",",scientific=FALSE)),
+        hoverinfo = "text+y") %>%
+  add_trace(y = ~White.Population..Non.Hispanic., 
+            name = 'White Population',
+            marker=list(color = color[2])) %>%
+  add_trace(y = ~Hispanic.Population, 
+            name = 'Hispanic Population',
+            marker=list(color = color[3])) %>%
+  add_trace(y = ~Asian.Population, 
+            name = 'Asian Population',
+            marker=list(color = color[4])) %>%
+  layout(margin = list(t = 80),
+         barmode = 'stack', 
+         annotations = list(text = "Racial Breakdown of Urban Areas in US States", 
+                            showarrow = FALSE, 
+                            font = list(size = 19), 
+                            x = 0.5, 
+                            xref = "paper", 
+                            xanchor = "center", 
+                            y = 1.2, 
+                            yref = "paper"),
+         yaxis = list(title = "Percent of Population",
+                      ticksuffix = "%",
+                      zeroline = FALSE))   %>%
+  add_annotations(text = paste0("Based on Data from 273 Cities in 43 States"), 
+                  showarrow = FALSE, 
+                  font = list(size = 16), 
+                  x = 0.5, 
+                  xref = "paper", 
+                  xanchor = "center", 
+                  y = 1.12, 
+                  yref = "paper")
+```
+
+##Looking at a sample of 5 random states
+```{r}
+set.seed(1)
+index <- sample(1:nrow(us_states), 5)
+us_sub <- us_states[index,]
+
+plot_ly(us_sub, x = ~State, y = ~Black.Population, 
+        type = 'bar',
+        name = 'Black Population',
+        marker = list(color = color[1]),
+        text = paste("<b>State:</b>", us_sub$State, "<br><b>Sample Population:</b>", prettyNum(us_sub$TotalPop,big.mark=",",scientific=FALSE)),
+        hoverinfo = "text+y") %>%
+  add_trace(y = ~White.Population..Non.Hispanic., 
+            name = 'White Population',
+            marker=list(color = color[2])) %>%
+  add_trace(y = ~Hispanic.Population, 
+            name = 'Hispanic Population',
+            marker=list(color = color[3])) %>%
+  add_trace(y = ~Asian.Population, 
+            name = 'Asian Population',
+            marker=list(color = color[4])) %>%
+  layout(margin = list(t = 80),
+         barmode = 'stack', 
+         annotations = list(text = "Racial Breakdown of Urban Areas in Five US States", 
+                            showarrow = FALSE, 
+                            font = list(size = 19), 
+                            x = 0.5, 
+                            xref = "paper", 
+                            xanchor = "center", 
+                            y = 1.2, 
+                            yref = "paper"),
+         yaxis = list(title = "Percent of Population",
+                      ticksuffix = "%",
+                      zeroline = FALSE))
+
+```
+
